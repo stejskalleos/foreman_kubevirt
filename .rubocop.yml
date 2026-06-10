@@ -5,6 +5,9 @@ inherit_gem:
   theforeman-rubocop:
     - lenient.yml
 
+AllCops:
+  TargetRubyVersion: '3.0'
+
 # Don't enforce certain methods, e.g. detect over find
 Style/CollectionMethods:
   Enabled: false
