@@ -56,14 +56,28 @@ class ForemanKubevirtTest < ActiveSupport::TestCase
       record.stubs(:client).returns(client)
 
       expected_networks = [{ :name => "default-network", :multus => { :networkName => "default/network" } }]
-      expected_interfaces = [{ :bridge => {}, :name => "default-network" }]
 
       client.vms.expects(:create).with do |args|
         assert_equal expected_networks, args[:networks]
-        assert_equal expected_interfaces, args[:interfaces]
+        assert_equal 1, args[:interfaces].length
+        interface = args[:interfaces].first
+        assert_equal({ :bridge => {}, :name => "default-network" }, interface.except(:macAddress))
+        assert_match(/\A52:54:00(:[0-9a-f]{2}){3}\z/, interface[:macAddress])
       end
 
       record.create_vm({ :name => "test", :volumes_attributes => { 0 => { :capacity => "5" } }, :interfaces_attributes => { "0" => { "cni_provider" => "multus", "network" => "default/network" } } })
+    end
+
+    test "uses the provided mac address instead of generating one" do
+      record = new_kubevirt_vcr
+      client = mocked_client
+      record.stubs(:client).returns(client)
+
+      client.vms.expects(:create).with do |args|
+        assert_equal "aa:bb:cc:dd:ee:ff", args[:interfaces].first[:macAddress]
+      end
+
+      record.create_vm({ :name => "test", :volumes_attributes => { 0 => { :capacity => "5" } }, :interfaces_attributes => { "0" => { "cni_provider" => "multus", "network" => "default/network", "mac" => "aa:bb:cc:dd:ee:ff" } } })
     end
 
     test "raises an error for image based provisioning without an explicit boot volume" do

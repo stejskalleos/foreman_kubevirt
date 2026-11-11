@@ -512,6 +512,15 @@ module ForemanKubevirt
       [nic, net]
     end
 
+    # Without an explicit macAddress, KubeVirt only assigns one once the VM
+    # actually boots and virt-launcher reports it at runtime, which races
+    # with Orchestration::Compute#match_macs_to_nics checking for it right
+    # after creation. Generating one ourselves makes it available immediately
+    # from the VM spec, matching how other compute resources behave.
+    def generate_mac_address
+      "52:54:00:%02x:%02x:%02x" % Array.new(3) { rand(256) }
+    end
+
     def create_network_devices_for_vm(options, volumes)
       interfaces = []
       networks = []
@@ -526,7 +535,7 @@ module ForemanKubevirt
         if iface[:provision] == true && volumes.select { |v| v.boot_order == 1 }.empty?
           nic[:bootOrder] = 1
         end
-        nic[:macAddress] = iface[:mac] if iface[:mac]
+        nic[:macAddress] = iface[:mac].presence || generate_mac_address
         interfaces << nic
         networks << net
       end
